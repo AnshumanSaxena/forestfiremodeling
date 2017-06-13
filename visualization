@@ -1,0 +1,99 @@
+library(shiny)
+library(leaflet)
+library(RColorBrewer)
+library(rgdal)
+library(markdown)
+
+
+data <- read.csv(file="/.../FINALFIREDATA.csv", header=TRUE, sep=",")
+
+ui <- bootstrapPage(
+  tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+  leafletOutput("map", width = "100%", height = "100%"),
+  absolutePanel(id="controls" ,fixed = TRUE,
+                draggable = TRUE, top = 10, left = "auto", right = 10, bottom = "auto",
+                width = 220, height = "auto",
+                div(style="padding: 10px 10px; border-radius: 15px; background: #FFFFFF;",
+                sliderInput("range", "Years", min(data$FIRE_YEAR), max(data$FIRE_YEAR),
+                           value = range(data$FIRE_YEAR), step = 1, sep = '', width=200),
+                checkboxGroupInput("variable", "State", unique(data$STATE)),
+                plotOutput("histCentile", width = 200, height=200)
+                )
+  )
+)
+
+server <- function(input, output, session) {
+  filteredData <- reactive({
+    data[data$FIRE_YEAR >= input$range[1] & data$FIRE_YEAR <= input$range[2] & data$STAT %in% input$variable,]
+  })
+
+  
+  pal <- colorNumeric(
+    palette = "Spectral",
+    domain = data$P_ACRES
+  )
+  
+  output$map <- renderLeaflet({
+    # Use leaflet() here, and only include aspects of the map that
+    # won't need to change dynamically (at least, not unless the
+    # entire map is being torn down and recreated).
+    leaflet(data) %>% 
+      addProviderTiles(providers$Esri.WorldTopoMap, group="Open Topo") %>%
+      setView(-88.2434, 40.1164, zoom = 6) %>%
+      addLegend("topleft", pal = pal, values = data$P_ACRES,
+                title = "Size of Wildfire (in acres)",
+                opacity = 1
+      )
+  })
+  
+  output$histCentile <- renderPlot({
+    bins <- seq(min(data$FIRE_YEAR), max(data$FIRE_YEAR))
+    x <- data$FIRE_YEAR
+    hist(x, breaks=bins, main = "Wildfires in the Midwest", 
+         xlab = "Year", ylab = "Fires")
+  })
+  
+  #defines the color of the circle change P_ACRES to r value you get from regression line & change data to predicted data
+  getColor <- function(data) {
+    sapply(data$P_ACRES, function(P_ACRES) {
+      if(P_ACRES <= 0.3) {
+        "green"
+      } else if(P_ACRES <= 0.7) {
+        "blue"
+      } else {
+        "purple"
+      } })
+  }
+  
+  getColorByRadius <- function(data){
+    sapply(data$P_ACRES, function(P_ACRES) {
+      if(P_ACRES >= 20000) {
+        "red"
+      } else if(P_ACRES >= 5000) {
+        "orange"
+      } else {
+        "yellow"
+      } })
+  }
+  
+  getActualDataContent <- function(data){
+    paste(sep="", "<font size='+1'><b>", data$CITY, ", ", data$STATE, "</font></b>", "<br/>", "<br/>", 
+          "On the fateful day of <b>", data$DATE, "</b>, a fire broke out in <b>", data$CITY, ", ", 
+          data$STATE, "</b> burning a total of <b>", data$P_ACRES, "</b> acres. The probability of a forest fire occuring right now is <b>", 
+          data$CLASS, "</b>.") 
+  }
+
+  
+  observe({
+    leafletProxy("map", data=filteredData()) %>%
+      #df=filteredData() %>%
+      clearMarkers() %>%
+      clearMarkerClusters() %>%
+      #actual data
+      addCircleMarkers(color=~pal(filteredData()$P_ACRES), radius = 10, stroke=FALSE, fillOpacity=0.5,
+        popup = getActualDataContent(filteredData()), group="Actual") # %>%
+ 
+  })
+}
+
+shinyApp(ui, server)

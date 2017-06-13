@@ -16,4 +16,6 @@ The data was obtained in geospatial format (.shp) from the Monitoring Trends in 
 
 Upon subsetting the dataset to retain just these five variables, we decided to use the R package **ggmap** to translate the coordinates to their approximate city using the *revgeocode* function. By gathering the city name and combining it with the date, we were able to cross-reference it with the weather data found on *wunderground.com*'s API, using the **weatherData** package. Initially, we tried to extract the weather data for all 19,184 observations, but that seemed to be too cumbersome and hence took a very long time. Therefore, we decided to to further subset the data by selecting forest fires in few of the Midwest states after the year 2010, which were of personal importance to us since we were located in Champaign, IL. The states we chose were Illinois, Indiana, Missouri, Michigan, Wisconsin and Iowa. Finally, we ended up with 96 observations. 
 
+Our data was now ready for visualization...
+
 ### Data Visualization

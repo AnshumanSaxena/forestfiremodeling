@@ -14,9 +14,13 @@ library(weatherData)
 library(plyr)
 
 # read the data
-forestfires = read.csv("/.../wildfiredata.csv")
+#
+forestfires = read.csv("/Users/asaxena/Downloads/wildfiredata.csv")
+setwd("/Users/asaxena/Downloads/")
+# fire1 = read.csv("Fire1.csv", header = TRUE)
 
 # subset the observations by 6 midwest states and after 2010
+#* Add P_ACRES for fire area 
 forestfiresmidwest = forestfires[which(forestfires$STATE == 'Illinois' | 
                                                  forestfires$STATE == 'Indiana' | 
                                                  forestfires$STATE == 'Missouri' | 
@@ -24,7 +28,7 @@ forestfiresmidwest = forestfires[which(forestfires$STATE == 'Illinois' |
                                                  forestfires$STATE == 'Wisconsin' |
                                          forestfires$STATE == 'Iowa'), 
                                          c("LAT", "LONG", "FIRE_YEAR", "FIRE_MON", "FIRE_DAY", 
-                                           "STATE")]
+                                           "STATE", "P_ACRES")]
 
 forestfiresmidwestpost2010 = forestfiresmidwest[forestfiresmidwest$FIRE_YEAR >= 2010, ]
 
@@ -67,24 +71,13 @@ for(i in 1:nrow(forestfiresmidwestpost2010)) {
 
 weather.temp = lapply(weather.data, unlist)
 weather.temp2 = max(sapply(weather.temp, length))
-weather.temp3 = do.call(rbind, lapply(weather.temp, 
-                                      function(z) c(z, rep(NA, weather.temp2 - length(z)))))
+weather.temp3 = do.call(rbind, lapply(weather.temp, function(z) c(z, rep(NA, weather.temp2 - length(z)))))
 weather = rbind.data.frame(weather.temp3)
 
-# subsetting the data frame
+tail(weather)
 forestfiresmidwestpost2010 = cbind(forestfiresmidwestpost2010, weather)
-forestfiresmidwestpost2010 = subset(forestfiresmidwestpost2010, select = c(LAT, LONG, CITY, 
-                               STATE, DATE, FIRE_YEAR, Max_TemperatureF, Mean_TemperatureF, Min_TemperatureF, 
-                               Max_Dew_PointF, MeanDew_PointF, Min_DewpointF, Max_Humidity, 
-                               Mean_Humidity, Min_Humidity, Max_Sea_Level_PressureIn, 
-                               Mean_Sea_Level_PressureIn, Min_Sea_Level_PressureIn, 
-                               Max_VisibilityMiles, Mean_VisibilityMiles, 
-                               Min_VisibilityMiles, Max_Wind_SpeedMPH, Mean_Wind_SpeedMPH, 
-                               Max_Gust_SpeedMPH, PrecipitationIn, CloudCover, Events, 
-                               WindDirDegrees))
 
-tail(forestfiresmidwestpost2010)
+forestfiresmidwestpost2010[is.na(forestfiresmidwestpost2010)] =  0
 
 # Finito...
-
-write.csv(forestfiresmidwestpost2010, file = '/.../forestfires.csv')
+write.csv(forestfiresmidwestpost2010, "FINALFIREDATA.csv")

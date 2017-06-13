@@ -1,0 +1,90 @@
+# STAT 385 Project - Predicting forest fires from weather
+# Data contains observations from 1984 to 2016
+# 1. We will subset this data to show observations in midwest states after 2010
+# 2. Then, we will extract the city name from the latitude and longitude
+# 3. Finally, we will extract the weather in that city on the day of the forest fire
+# 4. Based on that, we will try to fit a model that can predict forest fires
+
+# libraries
+# devtools::install_github("Ram-N/weatherData")
+
+library(ggplot2)
+library(ggmap)
+library(weatherData)
+library(plyr)
+
+# read the data
+forestfires = read.csv("/.../wildfiredata.csv")
+
+# subset the observations by 6 midwest states and after 2010
+forestfiresmidwest = forestfires[which(forestfires$STATE == 'Illinois' | 
+                                                 forestfires$STATE == 'Indiana' | 
+                                                 forestfires$STATE == 'Missouri' | 
+                                                 forestfires$STATE == 'Michigan' | 
+                                                 forestfires$STATE == 'Wisconsin' |
+                                         forestfires$STATE == 'Iowa'), 
+                                         c("LAT", "LONG", "FIRE_YEAR", "FIRE_MON", "FIRE_DAY", 
+                                           "STATE")]
+
+forestfiresmidwestpost2010 = forestfiresmidwest[forestfiresmidwest$FIRE_YEAR >= 2010, ]
+
+# extract city name 
+address = 0
+
+for (i in 1:nrow(forestfiresmidwestpost2010)){
+  address[i] = revgeocode(c(forestfiresmidwestpost2010$LONG[i], 
+                            forestfiresmidwestpost2010$LAT[i]))
+}
+
+forestfiresmidwestpost2010$ADDRESS = address
+
+addressupdtd = strsplit(forestfiresmidwestpost2010$ADDRESS, ", ")
+addressupdtd = data.frame(matrix(unlist(addressupdtd), nrow = 96, byrow = TRUE), 
+                          stringsAsFactors = FALSE)
+
+colnames(addressupdtd) = c("Street", "City", "State", "Country")
+
+forestfiresmidwestpost2010$CITY = addressupdtd$City
+
+forestfiresmidwestpost2010$CITY
+
+# merge the dates together
+forestfiresmidwestpost2010$DATE = paste(forestfiresmidwestpost2010$FIRE_YEAR, 
+                                                   forestfiresmidwestpost2010$FIRE_MON, 
+                                                   forestfiresmidwestpost2010$FIRE_DAY, 
+                                                   sep = "-")
+
+forestfiresmidwestpost2010$DATE = as.Date(forestfiresmidwestpost2010$DATE)
+
+# extract weather data
+weather.data = list(NA)
+
+for(i in 1:nrow(forestfiresmidwestpost2010)) {
+  weather.data[i] = list(getWeatherForDate(forestfiresmidwestpost2010$CITY[i], 
+                                           forestfiresmidwestpost2010$DATE[i], 
+                                           opt_all_columns = TRUE))
+}
+
+weather.temp = lapply(weather.data, unlist)
+weather.temp2 = max(sapply(weather.temp, length))
+weather.temp3 = do.call(rbind, lapply(weather.temp, 
+                                      function(z) c(z, rep(NA, weather.temp2 - length(z)))))
+weather = rbind.data.frame(weather.temp3)
+
+# subsetting the data frame
+forestfiresmidwestpost2010 = cbind(forestfiresmidwestpost2010, weather)
+forestfiresmidwestpost2010 = subset(forestfiresmidwestpost2010, select = c(LAT, LONG, CITY, 
+                               STATE, DATE, FIRE_YEAR, Max_TemperatureF, Mean_TemperatureF, Min_TemperatureF, 
+                               Max_Dew_PointF, MeanDew_PointF, Min_DewpointF, Max_Humidity, 
+                               Mean_Humidity, Min_Humidity, Max_Sea_Level_PressureIn, 
+                               Mean_Sea_Level_PressureIn, Min_Sea_Level_PressureIn, 
+                               Max_VisibilityMiles, Mean_VisibilityMiles, 
+                               Min_VisibilityMiles, Max_Wind_SpeedMPH, Mean_Wind_SpeedMPH, 
+                               Max_Gust_SpeedMPH, PrecipitationIn, CloudCover, Events, 
+                               WindDirDegrees))
+
+tail(forestfiresmidwestpost2010)
+
+# Finito...
+
+write.csv(forestfiresmidwestpost2010, file = '/.../forestfires.csv')
